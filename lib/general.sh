@@ -899,7 +899,7 @@ addtorepo()
 # parameter "delete" remove incoming directory if publishing is succesful
 # function: cycle trough distributions
 
-	local distributions=("stretch" "bionic" "buster" "bullseye" "focal" "hirsute" "impish" "jammy" "sid")
+	local distributions=("stretch" "bionic" "buster" "bullseye" "focal" "hirsute" "impish" "jammy" "bookworm" "sid")
 	#local distributions=($(grep -rw config/distributions/*/ -e 'supported' | cut -d"/" -f3))
 	local errors=0
 
@@ -1037,7 +1037,7 @@ repo-manipulate()
 # "update" search for new files in output/debs* to add them to repository
 # "purge" leave only last 5 versions
 
-	local DISTROS=("stretch" "bionic" "buster" "bullseye" "focal" "hirsute" "impish" "jammy" "sid")
+	local DISTROS=("stretch" "bionic" "buster" "bullseye" "focal" "hirsute" "impish" "jammy" "sid" "bookworm")
 	#local DISTROS=($(grep -rw config/distributions/*/ -e 'supported' | cut -d"/" -f3))
 
 	case $@ in
@@ -1429,7 +1429,7 @@ prepare_host()
   fi
 
 	# Add support for Ubuntu 20.04, 21.04 and Mint 20.x
-	if [[ $HOSTRELEASE =~ ^(focal|impish|hirsute|jammy|ulyana|ulyssa|bullseye|uma|una)$ ]]; then
+	if [[ $HOSTRELEASE =~ ^(focal|impish|hirsute|jammy|bookworm|ulyana|ulyssa|bullseye|uma|una)$ ]]; then
 		hostdeps+=" python2 python3"
 		ln -fs /usr/bin/python2.7 /usr/bin/python2
 		ln -fs /usr/bin/python2.7 /usr/bin/python
@@ -1444,7 +1444,7 @@ prepare_host()
 	#
 	# NO_HOST_RELEASE_CHECK overrides the check for a supported host system
 	# Disable host OS check at your own risk. Any issues reported with unsupported releases will be closed without discussion
-	if [[ -z $HOSTRELEASE || "buster bullseye focal impish hirsute jammy debbie tricia ulyana ulyssa uma una" != *"$HOSTRELEASE"* ]]; then
+	if [[ -z $HOSTRELEASE || "buster bullseye focal impish hirsute jammy bookworm debbie tricia ulyana ulyssa uma una" != *"$HOSTRELEASE"* ]]; then
 		if [[ $NO_HOST_RELEASE_CHECK == yes ]]; then
 			display_alert "You are running on an unsupported system" "${HOSTRELEASE:-(unknown)}" "wrn"
 			display_alert "Do not report any errors, warnings or other issues encountered beyond this point" "" "wrn"
