@@ -261,7 +261,7 @@ patch/u-boot/u-boot-qemu-x86/		@rpardini
 patch/u-boot/u-boot-rockchip64-v2022.04/		@TRSx80 @ahoneybun @paolosabatino
 patch/u-boot/u-boot-rockchip64/		@Tonymac32 @andyshrk @clee @igorpecovnik @prahal @redrathnure @sicXnull
 patch/u-boot/u-boot-sunxi-crust/		@AGM1968 @Kreyren @NicoD-SBC @PanderMusubi @Tonymac32 @devdotnetorg @schwar3kat @spendist @teknoid
-patch/u-boot/u-boot-sunxi/		@1ubuntuuser @AGM1968 @DylanHP @Janmcha @JohnTheCoolingFan @Kreyren @NicoD-SBC @PanderMusubi @Ressetkk @StephenGraf @TheSnowfield @Tonymac32 @alexl83 @chraac @devdotnetorg @eliasbakken @janprunk @krachlatte @lbmendes @leggewie @mhawkins-consultant @schwar3kat @sgjava @sicXnull @spendist @teknoid
+patch/u-boot/u-boot-sunxi/		@1ubuntuuser @AGM1968 @DylanHP @Janmcha @JohnTheCoolingFan @Kreyren @NicoD-SBC @PanderMusubi @Ressetkk @StephenGraf @TheSnowfield @Tonymac32 @devdotnetorg @eliasbakken @janprunk @krachlatte @lbmendes @leggewie @mhawkins-consultant @schwar3kat @sgjava @sicXnull @spendist @teknoid
 patch/u-boot/u-boot-sunxi/board_bananapim3/		@AaronNGray
 patch/u-boot/u-boot-tqma/		@schmiedelm
 patch/u-boot/v2022.01/		@teknoid
@@ -272,13 +272,13 @@ patch/u-boot/v2023.10/		@adeepn
 patch/u-boot/v2024.01/		@Tonymac32 @rpardini
 patch/u-boot/v2024.01/board_orangepi5/		@efectn
 patch/u-boot/v2024.04-rock5b-radxa/		@amazingfate @linhz0hz
-patch/u-boot/v2024.04/		@Tonymac32 @chraac @pyavitz @utlark
+patch/u-boot/v2024.04/		@Tonymac32 @pyavitz @utlark
 patch/u-boot/v2024.07-coolpi-cm5/		@andyshrk
 patch/u-boot/v2024.07/		@adeepn @igorpecovnik @monkaBlyat
 patch/u-boot/v2024.07/board_station-m1/		@150balbes
 patch/u-boot/v2024.10/		@HeyMeco @alexl83 @brentr @fridtjof @pyavitz
 patch/u-boot/v2024.10/board_bigtreetech-cb2/		@JohnTheCoolingFan
-patch/u-boot/v2025-sunxi/		@The-going
+patch/u-boot/v2025-sunxi/		@The-going @alexl83 @chraac
 patch/u-boot/v2025.01-rc3-coolpi-cm5/		@andyshrk
 patch/u-boot/v2025.01/		@ColorfulRhino @efectn @jeanrhum @joekhoobyar @paolosabatino @pyavitz @rpardini @torte71
 patch/u-boot/v2025.01/board_h96-tvbox-3566/		@hqnicolas
