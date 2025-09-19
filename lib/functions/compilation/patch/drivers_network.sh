@@ -160,6 +160,9 @@ driver_rtl8192EU() {
 
 		process_patch_file "${SRC}/patch/misc/wireless-rtl8192eu-Fix-p2p-go-advertising.patch" "applying"
 
+		# fix compilation for kernels >= 6.17
+		process_patch_file "${SRC}/patch/misc/wireless-rtl8192eu-Fix-building-on-6.16-6.17.patch" "applying"
+
 		# fix compilation for kernels >= 5.4
 		process_patch_file "${SRC}/patch/misc/wireless-rtl8192eu-Fix-VFS-import.patch" "applying"
 
