@@ -35,6 +35,21 @@ function install_distribution_specific() {
 		truncate --size=0 "${SDCARD}"/etc/apt/apt.conf.d/20apt-esm-hook.conf
 	fi
 
+	# power management override on systemd level
+	# we want to prevent system going into suspend
+	mkdir -p "${SDCARD}/etc/systemd/logind.conf.d"
+	cat <<- EOF > "${SDCARD}/etc/systemd/logind.conf.d/90-nosuspend.conf"
+	[Login]
+	HandleLidSwitch=ignore
+	HandleLidSwitchExternalPower=ignore
+	HandleLidSwitchDocked=ignore
+	IdleAction=ignore
+	IdleActionSec=0
+	HandleSuspendKey=ignore
+	HandleHibernateKey=ignore
+	HandlePowerKey=ignore
+	EOF
+
 	# install our base-files package (this replaces the original from Debian/Ubuntu)
 	if [[ "${KEEP_ORIGINAL_OS_RELEASE:-"no"}" != "yes" ]]; then
 		install_artifact_deb_chroot "armbian-base-files" "--allow-downgrades"
