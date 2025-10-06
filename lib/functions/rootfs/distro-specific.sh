@@ -35,6 +35,8 @@ function install_distribution_specific() {
 		truncate --size=0 "${SDCARD}"/etc/apt/apt.conf.d/20apt-esm-hook.conf
 	fi
 
+	# Apply power management overrides only for desktop builds
+	if [[ "${BUILD_DESKTOP}" == "yes" ]]; then
 	# power management override on systemd level
 	# we want to prevent system going into suspend
 	mkdir -p "${SDCARD}/etc/systemd/logind.conf.d"
@@ -49,6 +51,7 @@ function install_distribution_specific() {
 	HandleHibernateKey=ignore
 	HandlePowerKey=ignore
 	EOF
+	fi
 
 	# install our base-files package (this replaces the original from Debian/Ubuntu)
 	if [[ "${KEEP_ORIGINAL_OS_RELEASE:-"no"}" != "yes" ]]; then
