@@ -1,0 +1,11 @@
+language: "en-US"
+reviews:
+  changed_files_summary: true
+  high_level_summary: true
+  high_level_summary_in_walkthrough: true
+  high_level_summary_placeholder: "High-level overview"
+  auto_review:
+    enabled: true
+    labels: ["Needs review"]
+    ignore_usernames: ["dependabot[bot]", "renovate[bot]"]
+    ignore_title_keywords: ["wip", "draft"]
