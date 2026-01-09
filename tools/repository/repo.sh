@@ -936,22 +936,34 @@ merge_repos() {
 		# Publish with common component included
 		log "Publishing $release with component list: $component_list"
 
-		# Before publishing, clean up any conflicting files in the pool
-		# This can happen when packages are rebuilt with same version but different content
+		# Before publishing, clean up conflicting files in the pool
+		# This handles the case where packages are rebuilt with same version but different content
+		# The brute force approach: remove all pool files that might conflict
+		# Aptly will re-link the correct files from the main DB pool during publish
 		local published_pool="${output_folder}/public/pool"
 		if [[ -d "$published_pool" ]]; then
-			log "Checking for conflicting pool files..."
-			# Get list of packages that will be published and remove existing pool files
-			# This is safe because aptly will re-link them during publish
+			log "Cleaning up published pool to avoid conflicts..."
+			# Get all unique package names from the snapshots we're about to publish
+			local pkg_names=()
 			for snapshot in $snapshot_list; do
-				aptly -config="$main_db_config" snapshot show "$snapshot" 2>/dev/null | grep -E "^\s+[a-z0-9]+:" | while read -r pkg_line; do
-					# Parse package line: name_version_arch
-					pkg_line=$(echo "$pkg_line" | xargs) # trim whitespace
-					local pkg_name=$(echo "$pkg_line" | cut -d_ -f1)
-					# Find and remove any existing pool files for this package
-					find "$published_pool" -name "${pkg_name}_*.deb" -type f -delete 2>/dev/null || true
-				done
+				# Snapshot show output format varies, but packages are listed after line 6
+				# Each line is: "  name_version_arch" with leading spaces
+				while IFS= read -r pkg_line; do
+					[[ -z "$pkg_line" ]] && continue
+					# Trim whitespace
+					pkg_line=$(echo "$pkg_line" | xargs 2>/dev/null || echo "$pkg_line")
+					# Extract package name (first field before underscore)
+					local pkg_name="${pkg_line%%_*}"
+					[[ -n "$pkg_name" ]] && pkg_names+=("$pkg_name")
+				done < <(aptly -config="$main_db_config" snapshot show "$snapshot" 2>/dev/null | tail -n +7)
 			done
+
+			# Remove pool files for these packages
+			# Use sort -u to deduplicate package names
+			for pkg_name in $(printf '%s\n' "${pkg_names[@]}" | sort -u); do
+				find "$published_pool" -name "${pkg_name}_*.deb" -type f -delete 2>/dev/null || true
+			done
+			log "Pool cleanup complete"
 		fi
 
 		if ! run_aptly publish \
