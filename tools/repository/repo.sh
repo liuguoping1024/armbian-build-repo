@@ -806,9 +806,20 @@ merge_repos() {
 					local isolated_pool="${isolated_db}/pool"
 					if [[ -d "$isolated_pool" ]]; then
 						# Find all .deb files for this release in the isolated pool
+						# IMPORTANT: Only add packages that are actually in this repo, not all packages in pool!
 						find "$isolated_pool" -name "*.deb" -type f | while read -r deb_file; do
-							# Add to main repo
-							run_aptly -config="$main_db_config" repo add -force-replace "${release}-utils" "$deb_file"
+							# Get package info to check if it belongs to this repo
+							local deb_name deb_version deb_arch
+							deb_info=$(dpkg-deb -f "$deb_file" Package Version Architecture 2>/dev/null)
+							deb_name=$(echo "$deb_info" | sed -n '1s/Package: //p')
+							deb_version=$(echo "$deb_info" | sed -n '2s/Version: //p')
+							deb_arch=$(echo "$deb_info" | sed -n '3s/Architecture: //p')
+							local deb_key="${deb_name}_${deb_version}_${deb_arch}"
+
+							# Check if this package is in the utils repo
+							if echo "$packages" | grep -q "^${deb_key}$"; then
+								run_aptly -config="$main_db_config" repo add -force-replace "${release}-utils" "$deb_file"
+							fi
 						done
 					fi
 				fi
@@ -833,7 +844,18 @@ merge_repos() {
 					local isolated_pool="${isolated_db}/pool"
 					if [[ -d "$isolated_pool" ]]; then
 						find "$isolated_pool" -name "*.deb" -type f | while read -r deb_file; do
-							run_aptly -config="$main_db_config" repo add -force-replace "${release}-desktop" "$deb_file"
+							# Get package info to check if it belongs to this repo
+							local deb_name deb_version deb_arch
+							deb_info=$(dpkg-deb -f "$deb_file" Package Version Architecture 2>/dev/null)
+							deb_name=$(echo "$deb_info" | sed -n '1s/Package: //p')
+							deb_version=$(echo "$deb_info" | sed -n '2s/Version: //p')
+							deb_arch=$(echo "$deb_info" | sed -n '3s/Architecture: //p')
+							local deb_key="${deb_name}_${deb_version}_${deb_arch}"
+
+							# Check if this package is in the desktop repo
+							if echo "$packages" | grep -q "^${deb_key}$"; then
+								run_aptly -config="$main_db_config" repo add -force-replace "${release}-desktop" "$deb_file"
+							fi
 						done
 					fi
 				fi
