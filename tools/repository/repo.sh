@@ -718,11 +718,6 @@ merge_repos() {
 	if [[ -n $(aptly -config="$main_db_config" snapshot list -raw 2>/dev/null | awk '{print $(NF)}' | grep "common") ]]; then
 		common_exists=true
 		log "Found common snapshot in main database"
-	else
-		log "WARNING: Common snapshot not found in main database"
-		log "Run 'update-main' command first!"
-		rm -f "$main_db_config"
-		return 1
 	fi
 
 	# Get all releases that need to be merged
@@ -755,6 +750,23 @@ merge_repos() {
 	fi
 
 	log "Found ${#releases[@]} release(s) to process: ${releases[*]:-none}"
+
+	# If there are no releases to process, this is a no-op (not an error)
+	# This can happen when the repository is empty or workers haven't run yet
+	if [[ ${#releases[@]} -eq 0 ]]; then
+		log "No releases to merge - nothing to do"
+		rm -f "$main_db_config"
+		return 0
+	fi
+
+	# If we have releases but no common snapshot, that's an error (incomplete workflow)
+	if [[ "$common_exists" == false ]]; then
+		log "ERROR: Common snapshot not found in main database"
+		log "Found ${#releases[@]} release(s) to merge but no common snapshot"
+		log "Run 'update-main' command first!"
+		rm -f "$main_db_config"
+		return 1
+	fi
 
 	# Import snapshots from isolated databases into main database
 	# This allows us to re-publish with common component included
