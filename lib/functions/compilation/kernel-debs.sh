@@ -537,8 +537,14 @@ function kernel_package_callback_linux_headers() {
 			echo "Compiling kernel-headers scripts (${kernel_version_family}) using \$NCPU CPUs - please wait ..."
 			make ARCH="${SRC_ARCH}" -j\$NCPU scripts
 
-			echo "Compiling kernel-headers scripts/mod (${kernel_version_family}) using \$NCPU CPUs - please wait ..."
-			make ARCH="${SRC_ARCH}" -j\$NCPU M=scripts/mod/
+			# Build scripts/mod (modpost, mk_elfconfig) separately
+			# The standard 'make scripts' doesn't include scripts/mod since kernel 6.x
+			# Add subdir-y += mod to make kbuild descend into scripts/mod/
+			echo "Building scripts/mod (modpost, mk_elfconfig) for DKMS support..."
+			cp scripts/Makefile scripts/Makefile.backup
+			echo 'subdir-y += mod' >> scripts/Makefile
+			make ARCH="${SRC_ARCH}" -j\$NCPU scripts
+			mv scripts/Makefile.backup scripts/Makefile
 
 			echo "Compiling resolve_btfids tools for assigning stable BTF type IDs to kernel symbols"
 			make ARCH="${SRC_ARCH}" -j\$NCPU tools/bpf/resolve_btfids
