@@ -1,15 +1,21 @@
 # Extension: ccache-remote
-# Enables ccache with remote Redis storage for sharing compilation cache across build hosts
+# Enables ccache with remote storage for sharing compilation cache across build hosts.
+# Supports Redis and HTTP/WebDAV backends (ccache 4.4+).
 #
-# Documentation: https://ccache.dev/howto/redis-storage.html
-# See also: https://ccache.dev/manual/4.10.html#config_remote_storage
+# Documentation:
+#   Redis:   https://ccache.dev/howto/redis-storage.html
+#   HTTP:    https://ccache.dev/howto/http-storage.html
+#   General: https://ccache.dev/manual/4.10.html#config_remote_storage
 #
 # Usage:
-#   # With Avahi/mDNS auto-discovery:
+#   # With Avahi/mDNS auto-discovery (Redis):
 #   ./compile.sh ENABLE_EXTENSIONS=ccache-remote BOARD=...
 #
-#   # With explicit Redis server (no Avahi needed):
+#   # With explicit Redis server:
 #   ./compile.sh ENABLE_EXTENSIONS=ccache-remote CCACHE_REMOTE_STORAGE="redis://192.168.1.65:6379" BOARD=...
+#
+#   # With HTTP/WebDAV server:
+#   ./compile.sh ENABLE_EXTENSIONS=ccache-remote CCACHE_REMOTE_STORAGE="http://192.168.1.65:8088/ccache/" BOARD=...
 #
 #   # Disable local cache, use remote only (saves local disk space):
 #   ./compile.sh ENABLE_EXTENSIONS=ccache-remote CCACHE_REMOTE_ONLY=yes BOARD=...
@@ -19,7 +25,7 @@
 # Supported ccache environment variables (passed through to builds):
 # See: https://ccache.dev/manual/latest.html#_configuration_options
 #   CCACHE_BASEDIR        - base directory for path normalization (enables cache sharing)
-#   CCACHE_REMOTE_STORAGE - remote storage URL (redis://...)
+#   CCACHE_REMOTE_STORAGE - remote storage URL (redis://... or http://...)
 #   CCACHE_REMOTE_ONLY    - use only remote storage, disable local cache
 #   CCACHE_READONLY       - read-only mode, don't update cache
 #   CCACHE_RECACHE        - don't use cached results, but update cache
@@ -36,11 +42,14 @@
 #   CCACHE_PCH_EXTSUM     - include PCH extension in hash
 #
 # CCACHE_REMOTE_STORAGE format (ccache 4.4+):
-#   redis://HOST[:PORT][|attribute=value...]
+#   Redis: redis://HOST[:PORT][|attribute=value...]
+#   HTTP:  http://HOST[:PORT]/PATH/[|attribute=value...]
 #   Common attributes:
 #     connect-timeout=N   - connection timeout in milliseconds (default: 100)
 #     operation-timeout=N - operation timeout in milliseconds (default: 10000)
-#   Example: "redis://192.168.1.65:6379|connect-timeout=500"
+#   Examples:
+#     "redis://192.168.1.65:6379|connect-timeout=500"
+#     "http://192.168.1.65:8088/ccache/"
 #
 # Avahi/mDNS auto-discovery:
 #   This extension tries to resolve 'ccache.local' hostname via mDNS.
@@ -71,6 +80,32 @@
 #          Restart=on-failure
 #          [Install]
 #          WantedBy=redis-server.service
+#
+#   HTTP/WebDAV server setup example (nginx):
+#     1. Install: apt install nginx-extras
+#     2. Create /etc/nginx/sites-available/ccache-webdav:
+#          server {
+#              listen 8088;
+#              server_name _;
+#              root /var/cache/ccache-webdav;
+#              location /ccache/ {
+#                  dav_methods PUT DELETE;
+#                  create_full_put_path on;
+#                  dav_access user:rw group:rw all:r;
+#                  client_max_body_size 100M;
+#                  autoindex on;
+#              }
+#          }
+#     3. Enable and start:
+#          mkdir -p /var/cache/ccache-webdav/ccache
+#          chown -R www-data:www-data /var/cache/ccache-webdav
+#          ln -s /etc/nginx/sites-available/ccache-webdav /etc/nginx/sites-enabled/
+#          systemctl reload nginx
+#     4. Verify: curl -X PUT -d "test" http://localhost:8088/ccache/test.txt
+#        WARNING: This configuration has no authentication.
+#        Use ONLY in a fully trusted private network.
+#        For auth, add auth_basic directives. See nginx WebDAV documentation.
+#     Note: ccache does not support HTTPS directly. Use a reverse proxy for TLS.
 #
 #   Client requirements for mDNS resolution (one of):
 #     - libnss-resolve (systemd-resolved NSS module):
@@ -137,6 +172,29 @@ function ccache_get_redis_stats() {
 	echo "$stats"
 }
 
+# Check HTTP/WebDAV storage reachability via HEAD request
+function ccache_get_http_stats() {
+	local url="$1"
+	local stats=""
+	local http_code
+	http_code=$(timeout 3 curl -s -o /dev/null -w "%{http_code}" -X HEAD "${url}" 2>/dev/null || true)
+	if [[ -n "${http_code}" && "${http_code}" != "000" ]]; then
+		stats="reachable (HTTP ${http_code})"
+	fi
+	echo "$stats"
+}
+
+# Query remote storage stats based on URL scheme (redis:// or http://)
+function ccache_get_remote_stats() {
+	local url="$1"
+	if [[ "${url}" =~ ^redis://([^:/|]+):?([0-9]*) ]]; then
+		ccache_get_redis_stats "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]:-6379}"
+	elif [[ "${url}" =~ ^https?:// ]]; then
+		# Strip ccache attributes after | for the URL
+		ccache_get_http_stats "${url%%|*}"
+	fi
+}
+
 # Mask credentials in storage URLs to avoid leaking secrets into build logs
 # Handles any URI scheme with userinfo component (e.g., redis://user:pass@host)
 function ccache_mask_storage_url() {
@@ -160,21 +218,27 @@ function host_pre_docker_launch__setup_remote_ccache() {
 		ccache_ip=$(getent hosts ccache.local 2>/dev/null | awk '{print $1; exit}' || true)
 
 		if [[ -n "${ccache_ip}" ]]; then
-			display_alert "Remote ccache discovered on host" "redis://${ccache_ip}:6379" "info"
+			export CCACHE_REMOTE_STORAGE="redis://${ccache_ip}:6379|connect-timeout=${CCACHE_REDIS_CONNECT_TIMEOUT}"
+			display_alert "Remote ccache discovered on host" "$(ccache_mask_storage_url "${CCACHE_REMOTE_STORAGE}")" "info"
 
-			# Show Redis stats
+			# Show backend stats
 			local stats
-			stats=$(ccache_get_redis_stats "${ccache_ip}" 6379)
+			stats=$(ccache_get_remote_stats "${CCACHE_REMOTE_STORAGE}")
 			if [[ -n "$stats" ]]; then
 				display_alert "Remote ccache stats" "${stats}" "info"
 			fi
-
-			export CCACHE_REMOTE_STORAGE="redis://${ccache_ip}:6379|connect-timeout=${CCACHE_REDIS_CONNECT_TIMEOUT}"
 		else
 			display_alert "Remote ccache not found on host" "ccache.local not resolvable via mDNS" "debug"
 		fi
 	else
 		display_alert "Remote ccache pre-configured" "$(ccache_mask_storage_url "${CCACHE_REMOTE_STORAGE}")" "info"
+
+		# Show backend stats
+		local stats
+		stats=$(ccache_get_remote_stats "${CCACHE_REMOTE_STORAGE}")
+		if [[ -n "$stats" ]]; then
+			display_alert "Remote ccache stats" "${stats}" "info"
+		fi
 	fi
 
 	# Pass all set CCACHE_* variables to Docker
